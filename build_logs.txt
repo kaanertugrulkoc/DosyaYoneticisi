@@ -1,0 +1,8 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace ios/MobileApp.xcworkspace -scheme MobileApp -configuration Debug -sdk iphonesimulator build
+
+Build settings from command line:
+    SDKROOT = iphonesimulator26.2
+
+2026-02-11 20:40:23.218 xcodebuild[91206:10226162] Writing error result bundle to /var/folders/np/gl3wj3x940g5rz8h44zyd2p40000gn/T/ResultBundle_2026-11-02_20-40-0023.xcresult
+xcodebuild: error: Found no destinations for the scheme 'MobileApp' and action build.
