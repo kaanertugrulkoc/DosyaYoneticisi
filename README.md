@@ -53,4 +53,3 @@ Projeyi GitHub hesabınıza yüklemek için:
 
 ## 📱 Ekran Görüntüleri
 
-*(Buraya uygulamanın ekran görüntülerini ekleyebilirsiniz)*
