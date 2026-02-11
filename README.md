@@ -49,10 +49,7 @@ Projeyi GitHub hesabınıza yüklemek için:
 1. GitHub'da yeni bir repository oluşturun.
 2. Aşağıdaki komutları terminalde çalıştırın:
 ```bash
-git remote add origin https://github.com/KULLANICI_ADINIZ/DosyaYoneticisi.git
-git branch -M main
-git push -u origin main
-```
+
 
 ## 📱 Ekran Görüntüleri
 
