@@ -54,4 +54,5 @@ Projeyi GitHub hesabınıza yüklemek için:
 ## 📱 Ekran Görüntüleri
 <img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/c7c3ebbd-9876-4cb4-8e6f-14bb21ff43f5" />
 
+<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/82491601-822e-4367-896e-3c2763a49cf7" />
 
