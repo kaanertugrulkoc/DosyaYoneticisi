@@ -12,7 +12,7 @@ import {
     Dimensions,
     TextInput,
 } from 'react-native';
-import * as RNFS from 'react-native-fs';
+import * as FileSystem from 'expo-file-system';
 import {
     ChevronRight,
     ArrowLeft,
@@ -29,8 +29,8 @@ import { getFileIcon, formatSize } from '../utils/fileHelpers';
 const { width } = Dimensions.get('window');
 
 const ExplorerScreen = ({ navigation, route }) => {
-    const currentPath = route.params?.path || RNFS.DocumentDirectoryPath;
-    const folderName = currentPath.split('/').pop() || 'Dahili Depolama';
+    const currentPath = route.params?.path || FileSystem.documentDirectory;
+    const folderName = route.params?.path ? (currentPath.endsWith('/') ? currentPath.slice(0, -1) : currentPath).split('/').pop() : 'Dahili Depolama';
 
     const [files, setFiles] = useState([]);
     const [filteredFiles, setFilteredFiles] = useState([]);
@@ -42,11 +42,26 @@ const ExplorerScreen = ({ navigation, route }) => {
     const loadFiles = useCallback(async () => {
         try {
             setLoading(true);
-            const result = await RNFS.readDir(currentPath);
+            const names = await FileSystem.readDirectoryAsync(currentPath);
+            const items = await Promise.all(
+                names.map(async (name) => {
+                    const itemPath = currentPath.endsWith('/') ? `${currentPath}${name}` : `${currentPath}/${name}`;
+                    const info = await FileSystem.getInfoAsync(itemPath);
+                    return {
+                        name,
+                        path: itemPath,
+                        isDirectory: () => info.isDirectory,
+                        size: info.size || 0,
+                    };
+                })
+            );
+
             // Sort: Folders first, then alphabetical
-            const sorted = result.sort((a, b) => {
-                if (a.isDirectory() && !b.isDirectory()) return -1;
-                if (!a.isDirectory() && b.isDirectory()) return 1;
+            const sorted = items.sort((a, b) => {
+                const aIsDir = a.isDirectory();
+                const bIsDir = b.isDirectory();
+                if (aIsDir && !bIsDir) return -1;
+                if (!aIsDir && bIsDir) return 1;
                 return a.name.localeCompare(b.name);
             });
             setFiles(sorted);

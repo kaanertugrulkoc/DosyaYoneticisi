@@ -1,4 +1,24 @@
 {
-  "name": "DosyaYoneticisi",
-  "displayName": "Dosya Yoneticisi"
+  "expo": {
+    "name": "DosyaYoneticisi",
+    "slug": "DosyaYoneticisi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kaanertugrulkoc.DosyaYoneticisi"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.kaanertugrulkoc.DosyaYoneticisi"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
 }
