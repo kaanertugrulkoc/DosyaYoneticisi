@@ -7,6 +7,7 @@ import {
     StyleSheet,
     SafeAreaView,
     StatusBar,
+    Share,
     Alert,
     Dimensions,
     TextInput,
@@ -15,6 +16,7 @@ import {
     ScrollView
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import {
     ChevronRight,
     ArrowLeft,
@@ -42,7 +44,12 @@ import {
     EyeOff,
     Copy,
     Clipboard,
-    Scissors
+    Scissors,
+    Share2,
+    ArrowDownAZ,
+    ArrowUpAZ,
+    Calendar,
+    maximize
 } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 import { getFileIcon, formatSize } from '../utils/fileHelpers';
@@ -66,6 +73,11 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [showHidden, setShowHidden] = useState(params.showHidden || false);
+
+    // Sorting & Selection
+    const [sortOption, setSortOption] = useState('name-asc'); // name-asc, name-desc, date-asc, date-desc, size-asc, size-desc
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState([]);
 
     // Clipboard for Move/Copy
     const [clipboard, setClipboard] = useState(null); // { file: object, action: 'move' | 'copy' }
@@ -223,9 +235,20 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
             const sorted = items.sort((a, b) => {
                 const aIsDir = a.isDirectory();
                 const bIsDir = b.isDirectory();
+
+                // Always keep folders on top
                 if (aIsDir && !bIsDir) return -1;
                 if (!aIsDir && bIsDir) return 1;
-                return a.name.localeCompare(b.name);
+
+                switch (sortOption) {
+                    case 'name-asc': return a.name.localeCompare(b.name);
+                    case 'name-desc': return b.name.localeCompare(a.name);
+                    case 'size-asc': return (a.size || 0) - (b.size || 0);
+                    case 'size-desc': return (b.size || 0) - (a.size || 0);
+                    // Date sorting requires modification time which isn't fetched by default for all items for perf
+                    // Assuming name sort as fallback for now or need to fetch mtime
+                    default: return a.name.localeCompare(b.name);
+                }
             });
 
             setFiles(sorted);
@@ -255,15 +278,45 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     }, [searchQuery, files, showHidden, category]);
 
     const onFilePress = (item) => {
+        if (isSelectionMode) {
+            toggleSelection(item);
+            return;
+        }
+
         if (item.isDirectory()) {
             navigation.push('Explorer', { path: item.path, title: item.name });
         } else {
-            // File Handling Logic
-            Alert.alert('Dosya', `Dosya: ${item.name}\nBoyut: ${formatSize(item.size)}`);
+            // Check if shareable
+            Alert.alert(
+                'Dosya İşlemi',
+                `${item.name}`,
+                [
+                    { text: 'Aç', onPress: () => console.log('Open') }, // Placeholder for viewer
+                    { text: 'Paylaş', onPress: () => shareFile(item.path) },
+                    { text: 'İptal', style: 'cancel' }
+                ]
+            );
         }
     };
 
+    const toggleSelection = (item) => {
+        if (selectedFiles.some(f => f.path === item.path)) {
+            setSelectedFiles(selectedFiles.filter(f => f.path !== item.path));
+        } else {
+            setSelectedFiles([...selectedFiles, item]);
+        }
+    };
+
+    const shareFile = async (path) => {
+        if (!(await Sharing.isAvailableAsync())) {
+            Alert.alert('Hata', 'Paylaşım bu cihazda desteklenmiyor.');
+            return;
+        }
+        await Sharing.shareAsync(path);
+    };
+
     const openMenu = (item) => {
+        if (isSelectionMode) return;
         setSelectedFile(item);
         setActionType('menu');
         setModalVisible(true);
@@ -436,16 +489,22 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
 
     const renderFileItem = ({ item }) => {
         const { Icon, color } = getFileIcon(item.name, item.isDirectory());
+        const isSelected = selectedFiles.some(f => f.path === item.path);
 
         if (viewMode === 'grid') {
             return (
                 <TouchableOpacity
-                    style={styles.gridItem}
+                    style={[styles.gridItem, isSelected && { backgroundColor: '#e0e7ff', borderRadius: 8 }]}
                     onPress={() => onFilePress(item)}
-                    onLongPress={() => openMenu(item)}
+                    onLongPress={() => { setIsSelectionMode(true); toggleSelection(item); }}
                 >
                     <View style={[styles.gridIconContainer, { backgroundColor: color + '15' }]}>
                         <Icon size={32} color={color} />
+                        {isSelectionMode && isSelected && (
+                            <View style={styles.checkBadge}>
+                                <Check size={12} color="white" />
+                            </View>
+                        )}
                     </View>
                     <Text numberOfLines={2} style={styles.gridText}>{item.name}</Text>
                 </TouchableOpacity>
@@ -454,12 +513,17 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
 
         return (
             <TouchableOpacity
-                style={styles.listItem}
+                style={[styles.listItem, isSelected && { backgroundColor: '#e0e7ff' }]}
                 onPress={() => onFilePress(item)}
-                onLongPress={() => openMenu(item)}
+                onLongPress={() => { setIsSelectionMode(true); toggleSelection(item); }}
             >
                 <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
                     <Icon size={24} color={color} />
+                    {isSelectionMode && isSelected && (
+                        <View style={styles.checkBadge}>
+                            <Check size={12} color="white" />
+                        </View>
+                    )}
                 </View>
                 <View style={styles.itemInfo}>
                     <Text numberOfLines={1} style={styles.itemName}>{item.name}</Text>
@@ -467,9 +531,11 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
                         {item.isDirectory() ? 'Klasör' : formatSize(item.size)}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => openMenu(item)} style={{ padding: 8 }}>
-                    <MoreVertical size={20} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
+                {!isSelectionMode && (
+                    <TouchableOpacity onPress={() => openMenu(item)} style={{ padding: 8 }}>
+                        <MoreVertical size={20} color={theme.colors.textSecondary} />
+                    </TouchableOpacity>
+                )}
             </TouchableOpacity>
         );
     };
@@ -480,42 +546,65 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
 
             {/* Header */}
             <View style={styles.header}>
-                <View style={[styles.headerLeft, isSearching && { flex: 1 }]}>
-                    {(!isRoot || isSearching) && (
-                        <TouchableOpacity
-                            onPress={() => {
-                                if (isSearching) {
-                                    setIsSearching(false);
-                                    setSearchQuery('');
-                                } else {
-                                    navigation.goBack();
-                                }
-                            }}
-                            style={styles.backButton}
-                        >
-                            <ArrowLeft color={theme.colors.text} size={24} />
+                {isSelectionMode ? (
+                    <View style={[styles.headerLeft, { flex: 1 }]}>
+                        <TouchableOpacity onPress={() => { setIsSelectionMode(false); setSelectedFiles([]); }} style={styles.backButton}>
+                            <X color={theme.colors.text} size={24} />
                         </TouchableOpacity>
-                    )}
-                    {!isSearching ? (
-                        <Text style={styles.headerTitle}>{title}</Text>
-                    ) : (
-                        <View style={styles.searchInputContainer}>
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Dosya ara..."
-                                autoFocus
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                placeholderTextColor={theme.colors.textSecondary}
-                            />
-                        </View>
-                    )}
-                </View>
-                {!isSearching && (
+                        <Text style={styles.headerTitle}>{selectedFiles.length} Seçildi</Text>
+                    </View>
+                ) : (
+                    <View style={[styles.headerLeft, isSearching && { flex: 1 }]}>
+                        {(!isRoot || isSearching) && (
+                            <TouchableOpacity
+                                onPress={() => {
+                                    if (isSearching) {
+                                        setIsSearching(false);
+                                        setSearchQuery('');
+                                    } else {
+                                        navigation.goBack();
+                                    }
+                                }}
+                                style={styles.backButton}
+                            >
+                                <ArrowLeft color={theme.colors.text} size={24} />
+                            </TouchableOpacity>
+                        )}
+                        {!isSearching ? (
+                            <Text style={styles.headerTitle}>{title}</Text>
+                        ) : (
+                            <View style={styles.searchInputContainer}>
+                                <TextInput
+                                    style={styles.searchInput}
+                                    placeholder="Dosya ara..."
+                                    autoFocus
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    placeholderTextColor={theme.colors.textSecondary}
+                                />
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {!isSearching && !isSelectionMode && (
                     <View style={styles.headerRight}>
                         <TouchableOpacity style={styles.headerIcon} onPress={() => setIsSearching(true)}>
                             <Search color={theme.colors.text} size={22} />
                         </TouchableOpacity>
+
+                        {/* Sort Button */}
+                        <TouchableOpacity
+                            style={styles.headerIcon}
+                            onPress={() => {
+                                const nextSort = sortOption === 'name-asc' ? 'name-desc' : 'name-asc'; // Simple toggle for now
+                                setSortOption(nextSort);
+                                Alert.alert('Sıralama', nextSort === 'name-asc' ? 'İsim (A-Z)' : 'İsim (Z-A)');
+                            }}
+                        >
+                            {sortOption === 'name-asc' ? <ArrowDownAZ size={22} color={theme.colors.text} /> : <ArrowUpAZ size={22} color={theme.colors.text} />}
+                        </TouchableOpacity>
+
                         {(!isRoot || category) && (
                             <TouchableOpacity
                                 style={styles.headerIcon}
@@ -524,11 +613,21 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
                                 {viewMode === 'list' ? <LayoutGrid size={22} color={theme.colors.text} /> : <ListIcon size={22} color={theme.colors.text} />}
                             </TouchableOpacity>
                         )}
+
+                        {/* Multi Select Toggle */}
                         <TouchableOpacity
                             style={styles.headerIcon}
-                            onPress={() => setShowHidden(!showHidden)}
+                            onPress={() => setIsSelectionMode(true)}
                         >
-                            {showHidden ? <Eye size={22} color={theme.colors.text} /> : <EyeOff size={22} color={theme.colors.text} />}
+                            <Check size={22} color={theme.colors.text} />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {isSelectionMode && (
+                    <View style={styles.headerRight}>
+                        <TouchableOpacity style={styles.headerIcon} onPress={() => { setSelectedFiles(filteredFiles); }}>
+                            <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Tümü</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -562,10 +661,42 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
 
 
             {/* Paste Action FAB */}
-            {clipboard && !isRoot && (
+            {clipboard && !isRoot && !isSelectionMode && (
                 <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.secondary || '#10b981' }]} onPress={handlePaste}>
                     <Clipboard color="white" size={28} />
                 </TouchableOpacity>
+            )}
+
+            {/* Selection Toolbar */}
+            {isSelectionMode && selectedFiles.length > 0 && (
+                <View style={styles.selectionToolbar}>
+                    <TouchableOpacity style={styles.toolbarAction} onPress={() => {
+                        Alert.alert('Sil', `${selectedFiles.length} dosyayı silmek istiyor musunuz?`, [
+                            { text: 'İptal', style: 'cancel' },
+                            {
+                                text: 'Sil', style: 'destructive', onPress: async () => {
+                                    for (let f of selectedFiles) {
+                                        try { await FileSystem.deleteAsync(f.path, { idempotent: true }); } catch (e) { }
+                                    }
+                                    setIsSelectionMode(false);
+                                    setSelectedFiles([]);
+                                    loadFiles();
+                                }
+                            }
+                        ]);
+                    }}>
+                        <Trash2 color={theme.colors.error} size={24} />
+                        <Text style={[styles.toolbarText, { color: theme.colors.error }]}>Sil</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.toolbarAction} onPress={() => {
+                        // Share logic needed here for multiple
+                        Alert.alert('Özellik', 'Çoklu paylaşım yakında eklenecek.');
+                    }}>
+                        <Share2 color={theme.colors.text} size={24} />
+                        <Text style={styles.toolbarText}>Paylaş</Text>
+                    </TouchableOpacity>
+                </View>
             )}
 
             {/* Operations Modal */}
@@ -918,6 +1049,42 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 6,
+    },
+    checkBadge: {
+        position: 'absolute',
+        bottom: -4,
+        right: -4,
+        backgroundColor: '#3b82f6',
+        borderRadius: 10,
+        width: 20,
+        height: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'white'
+    },
+    selectionToolbar: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderTopColor: '#e2e8f0',
+        flexDirection: 'row',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        justifyContent: 'space-around'
+    },
+    toolbarAction: {
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    toolbarText: {
+        fontSize: 12,
+        marginTop: 4,
+        color: '#334155',
+        fontWeight: '500'
     },
     // Modal Styles
     modalOverlay: {
