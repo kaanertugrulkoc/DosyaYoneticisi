@@ -37,20 +37,27 @@ import {
     Check,
     Edit2,
     Info,
-    RefreshCw
+    RefreshCw,
+    Eye,
+    EyeOff,
+    Copy,
+    Clipboard,
+    Scissors
 } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 import { getFileIcon, formatSize } from '../utils/fileHelpers';
 
 const { width } = Dimensions.get('window');
 
-const ExplorerScreen = ({ navigation, route }) => {
+const ExplorerScreen = ({ navigation, route = {} }) => {
     const defaultPath = FileSystem.documentDirectory;
-    // Route params: path (string), category (string: 'image'|'video'|'audio'|'app'|'download'), title (string)
-    const currentPath = route.params?.path || defaultPath;
-    const isRoot = !route.params?.path && !route.params?.category;
-    const category = route.params?.category;
-    const title = route.params?.title || (isRoot ? 'Dosya Yöneticisi' : (category ? getCategoryTitle(category) : currentPath.split('/').pop()));
+    const params = route.params || {};
+
+    // Route params: path (string), category (string: 'image'|'video'|'audio'|'app'|'download'|'system'), title (string)
+    const currentPath = params.path || defaultPath;
+    const isRoot = !params.path && !params.category;
+    const category = params.category;
+    const title = params.title || (isRoot ? 'Dosya Yöneticisi' : (category ? getCategoryTitle(category) : (currentPath.split('/').pop() || 'Dosyalar')));
 
     const [files, setFiles] = useState([]);
     const [filteredFiles, setFilteredFiles] = useState([]);
@@ -58,6 +65,10 @@ const ExplorerScreen = ({ navigation, route }) => {
     const [viewMode, setViewMode] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [showHidden, setShowHidden] = useState(params.showHidden || false);
+
+    // Clipboard for Move/Copy
+    const [clipboard, setClipboard] = useState(null); // { file: object, action: 'move' | 'copy' }
 
     // Dashboard Stats
     const [stats, setStats] = useState({
@@ -82,6 +93,7 @@ const ExplorerScreen = ({ navigation, route }) => {
             case 'image': return 'Fotoğraflar';
             case 'video': return 'Videolar';
             case 'audio': return 'Ses Dosyaları';
+            case 'document': return 'Belgeler';
             case 'app': return 'Uygulamalar';
             case 'download': return 'İndirilenler';
             case 'trash': return 'Geri Dönüşüm';
@@ -89,25 +101,21 @@ const ExplorerScreen = ({ navigation, route }) => {
         }
     }
 
-    // Initialize required folders
-    useEffect(() => {
-        const initFolders = async () => {
-            if (!defaultPath) return;
-            const trashPath = defaultPath + '.trash/';
-            const downloadPath = defaultPath + 'Download/';
-
-            try {
-                const trashInfo = await FileSystem.getInfoAsync(trashPath);
-                if (!trashInfo.exists) await FileSystem.makeDirectoryAsync(trashPath);
-
-                const downloadInfo = await FileSystem.getInfoAsync(downloadPath);
-                if (!downloadInfo.exists) await FileSystem.makeDirectoryAsync(downloadPath);
-            } catch (e) {
-                console.log('Init error', e);
+    const ensureBaseDirectories = async () => {
+        if (!defaultPath) return;
+        const dirs = ['Download', '.trash', 'Documents', 'Pictures', 'Music'];
+        try {
+            for (const dir of dirs) {
+                const dirPath = defaultPath + (defaultPath.endsWith('/') ? '' : '/') + dir;
+                const info = await FileSystem.getInfoAsync(dirPath);
+                if (!info.exists) {
+                    await FileSystem.makeDirectoryAsync(dirPath);
+                }
             }
-        };
-        initFolders();
-    }, []);
+        } catch (e) {
+            console.log('Base dir init error', e);
+        }
+    };
 
     // Helper: Recursive Scan for Categories
     const scanRecursively = async (dir, type) => {
@@ -115,17 +123,13 @@ const ExplorerScreen = ({ navigation, route }) => {
         try {
             const entries = await FileSystem.readDirectoryAsync(dir);
             for (const entry of entries) {
-                if (entry.startsWith('.') && entry !== '.trash') continue;
-                if (entry === '.trash' && type !== 'trash') continue; // Only scan trash if type is trash
+                if (entry.startsWith('.') && !showHidden && entry !== '.trash') continue;
+                if (entry === '.trash' && type !== 'trash') continue;
 
                 const fullPath = dir + (dir.endsWith('/') ? '' : '/') + entry;
                 const info = await FileSystem.getInfoAsync(fullPath);
 
                 if (info.isDirectory) {
-                    // Deep scan is risky for large FS, limit depth or rely on flat search?
-                    // For this demo, let's limit to one level deep for performance or just root + Downloads
-                    // A true file manager needs better index. 
-                    // Let's recursively scan but be careful.
                     const subResults = await scanRecursively(fullPath, type);
                     results = [...results, ...subResults];
                 } else {
@@ -150,17 +154,23 @@ const ExplorerScreen = ({ navigation, route }) => {
         if (type === 'image') return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'].includes(ext);
         if (type === 'video') return ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext);
         if (type === 'audio') return ['mp3', 'wav', 'aac', 'flac', 'm4a'].includes(ext);
+        if (type === 'document') return ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'csv', 'md'].includes(ext);
         if (type === 'app') return ['apk', 'ipa'].includes(ext);
         return false;
     };
 
     const loadFiles = useCallback(async () => {
         try {
+            if (!currentPath) {
+                setLoading(false);
+                return;
+            }
             setLoading(true);
             let items = [];
 
             if (category) {
                 if (category === 'trash') {
+                    await ensureBaseDirectories();
                     const trashPath = defaultPath + '.trash/';
                     const names = await FileSystem.readDirectoryAsync(trashPath);
                     items = await Promise.all(names.map(async name => {
@@ -169,8 +179,8 @@ const ExplorerScreen = ({ navigation, route }) => {
                         return { name, path, isDirectory: () => info.isDirectory, size: info.size };
                     }));
                 } else if (category === 'download') {
+                    await ensureBaseDirectories();
                     const path = defaultPath + 'Download/';
-                    // Ensure it exists
                     const info = await FileSystem.getInfoAsync(path);
                     if (!info.exists) await FileSystem.makeDirectoryAsync(path);
 
@@ -181,11 +191,21 @@ const ExplorerScreen = ({ navigation, route }) => {
                         return { name, path: p, isDirectory: () => info.isDirectory, size: info.size };
                     }));
                 } else {
-                    // Start scan from root
                     items = await scanRecursively(defaultPath, category);
                 }
             } else {
-                // Normal Folder Mode
+                const dirInfo = await FileSystem.getInfoAsync(currentPath);
+                if (!dirInfo.exists) {
+                    Alert.alert('Hata', 'Dizin bulunamadı: ' + currentPath);
+                    setLoading(false);
+                    return;
+                }
+
+                // If root, ensure base dirs exist
+                if (currentPath === defaultPath || currentPath === defaultPath + '/') {
+                    await ensureBaseDirectories();
+                }
+
                 const names = await FileSystem.readDirectoryAsync(currentPath);
                 items = await Promise.all(names.map(async (name) => {
                     const itemPath = currentPath.endsWith('/') ? `${currentPath}${name}` : `${currentPath}/${name}`;
@@ -196,7 +216,7 @@ const ExplorerScreen = ({ navigation, route }) => {
                         isDirectory: () => info.isDirectory,
                         size: info.size || 0,
                     };
-                })).then(res => res.filter(i => !i.name.startsWith('.') || category === 'trash'));
+                }));
             }
 
             // Sort logic
@@ -209,15 +229,15 @@ const ExplorerScreen = ({ navigation, route }) => {
             });
 
             setFiles(sorted);
-            setFilteredFiles(sorted);
+            setFilteredFiles(sorted.filter(i => showHidden || !i.name.startsWith('.') || category === 'trash'));
 
         } catch (error) {
-            console.error(error);
-            // Alert.alert('Hata', 'Dosyalar okunurken sorun oluştu.'); 
+            console.error('File load error:', error);
+            Alert.alert('Hata', 'Dosyalar okunurken sorun oluştu: ' + error.message);
         } finally {
             setLoading(false);
         }
-    }, [currentPath, category]);
+    }, [currentPath, category, showHidden]);
 
     useEffect(() => {
         loadFiles();
@@ -225,16 +245,23 @@ const ExplorerScreen = ({ navigation, route }) => {
 
     useEffect(() => {
         if (searchQuery.trim() === '') {
-            setFilteredFiles(files);
+            setFilteredFiles(files.filter(i => showHidden || !i.name.startsWith('.') || category === 'trash'));
         } else {
             const filtered = files.filter(file =>
                 file.name.toLowerCase().includes(searchQuery.toLowerCase())
             );
             setFilteredFiles(filtered);
         }
-    }, [searchQuery, files]);
+    }, [searchQuery, files, showHidden, category]);
 
-    // --- File Operations ---
+    const onFilePress = (item) => {
+        if (item.isDirectory()) {
+            navigation.push('Explorer', { path: item.path, title: item.name });
+        } else {
+            // File Handling Logic
+            Alert.alert('Dosya', `Dosya: ${item.name}\nBoyut: ${formatSize(item.size)}`);
+        }
+    };
 
     const openMenu = (item) => {
         setSelectedFile(item);
@@ -242,61 +269,80 @@ const ExplorerScreen = ({ navigation, route }) => {
         setModalVisible(true);
     };
 
-    const handleRename = async () => {
-        if (!renameText.trim()) return;
-        // Construct new path
-        // Be careful with slashes
-        const parentPath = selectedFile.path.substring(0, selectedFile.path.lastIndexOf('/'));
-        const newPath = parentPath + '/' + renameText;
+    const addToClipboard = (file, action) => {
+        setClipboard({ file, action });
+        setModalVisible(false);
+        Alert.alert('Panoya Eklendi', `${action === 'move' ? 'Taşınacak' : 'Kopyalanacak'}: ${file.name}`);
+    };
+
+    const handlePaste = async () => {
+        if (!clipboard) return;
 
         try {
-            await FileSystem.moveAsync({ from: selectedFile.path, to: newPath });
-            setModalVisible(false);
-            setRenameText('');
+            const destPath = currentPath + (currentPath.endsWith('/') ? '' : '/') + clipboard.file.name;
+
+            // Check if destination is same as source
+            if (destPath === clipboard.file.path) {
+                Alert.alert('Uyarı', 'Hedef ve kaynak aynı olamaz.');
+                return;
+            }
+
+            if (clipboard.action === 'move') {
+                await FileSystem.moveAsync({
+                    from: clipboard.file.path,
+                    to: destPath
+                });
+                Alert.alert('Başarılı', 'Dosya taşındı.');
+            } else {
+                await FileSystem.copyAsync({
+                    from: clipboard.file.path,
+                    to: destPath
+                });
+                Alert.alert('Başarılı', 'Dosya kopyalandı.');
+            }
+
+            setClipboard(null);
             loadFiles();
-            Alert.alert('Başarılı', 'Dosya yeniden adlandırıldı.');
-        } catch (e) {
-            Alert.alert('Hata', 'Yeniden adlandırma başarısız. ' + e.message);
+        } catch (error) {
+            Alert.alert('Hata', 'İşlem başarısız: ' + error.message);
         }
     };
 
-    const handleDelete = async () => {
+    const handleRename = async () => {
+        if (!renameText.trim()) return;
         try {
-            if (category === 'trash') {
-                // Permanent Delete
-                await FileSystem.deleteAsync(selectedFile.path);
-                Alert.alert('Silindi', 'Dosya kalıcı olarak silindi.');
-            } else {
-                // Move to Trash
-                const trashPath = defaultPath + '.trash/' + selectedFile.name;
-                await FileSystem.moveAsync({ from: selectedFile.path, to: trashPath });
-                Alert.alert('Taşındı', 'Dosya geri dönüşüm kutusuna taşındı.');
-            }
+            const parentDir = selectedFile.path.substring(0, selectedFile.path.lastIndexOf('/'));
+            const newPath = `${parentDir}/${renameText}`;
+            await FileSystem.moveAsync({
+                from: selectedFile.path,
+                to: newPath
+            });
             setModalVisible(false);
-            loadFiles();
-        } catch (e) {
-            console.log(e);
-            Alert.alert('Hata', 'Silme işlemi başarısız.');
+            loadFiles(); // Refresh
+        } catch (error) {
+            Alert.alert('Hata', 'Yeniden adlandırma başarısız: ' + error.message);
+        }
+    };
+
+    const performDelete = async () => {
+        try {
+            await FileSystem.deleteAsync(selectedFile.path, { idempotent: true });
+            setModalVisible(false);
+            loadFiles(); // Refresh
+        } catch (error) {
+            Alert.alert('Hata', 'Silme işlemi başarısız: ' + error.message);
         }
     };
 
     const confirmDelete = () => {
         Alert.alert(
-            category === 'trash' ? 'Kalıcı Olarak Sil' : 'Geri Dönüşüme Taşı',
-            `"${selectedFile?.name}" ögesini silmek istediğinize emin misiniz?`,
+            'Sil',
+            `"${selectedFile.name}" adlı öğeyi silmek istiyor musunuz?`,
             [
                 { text: 'İptal', style: 'cancel' },
-                { text: 'Sil', style: 'destructive', onPress: handleDelete }
+                { text: 'Sil', style: 'destructive', onPress: performDelete }
             ]
         );
-    };
-
-    const onFilePress = (item) => {
-        if (item.isDirectory()) {
-            navigation.push('Explorer', { path: item.path });
-        } else {
-            openMenu(item);
-        }
     };
 
     const navigateToCategory = (cat) => {
@@ -305,30 +351,37 @@ const ExplorerScreen = ({ navigation, route }) => {
 
     // --- Components ---
 
-    const Dashboard = () => (
+    // --- Components ---
+
+    const renderDashboard = () => (
         <ScrollView style={styles.dashboardContainer} contentContainerStyle={{ paddingBottom: 20 }}>
-            {/* Storage Card */}
-            <View style={styles.storageCard}>
-                <View style={styles.storageHeader}>
-                    <View style={styles.storageIconBg}>
-                        <HardDrive size={24} color="white" />
+            {/* Storage Card - Interactive */}
+            <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => navigation.push('Explorer', { path: defaultPath, title: 'Dahili Depolama', showHidden: true })}
+            >
+                <View style={styles.storageCard}>
+                    <View style={styles.storageHeader}>
+                        <View style={styles.storageIconBg}>
+                            <HardDrive size={24} color="white" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.storageTitle}>Dahili Depolama</Text>
+                            <Text style={styles.storageSubtitle}>Boş alanı kontrol et</Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.percentText}>65%</Text>
+                        </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.storageTitle}>Dahili Depolama</Text>
-                        <Text style={styles.storageSubtitle}>Boş alanı kontrol et</Text>
+                    <View style={styles.progressBar}>
+                        <View style={[styles.progressFill, { width: '65%' }]} />
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.percentText}>65%</Text>
-                    </View>
+                    <TouchableOpacity style={styles.analyzeButton} onPress={() => Alert.alert('Analiz', 'Bellek analizi detayı burada olacak.')}>
+                        <Text style={styles.analyzeText}>Bellek Analizi</Text>
+                        <ChevronRight size={16} color="white" />
+                    </TouchableOpacity>
                 </View>
-                <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: '65%' }]} />
-                </View>
-                <TouchableOpacity style={styles.analyzeButton} onPress={() => Alert.alert('Analiz', 'Bellek analizi detayı burada olacak.')}>
-                    <Text style={styles.analyzeText}>Bellek Analizi</Text>
-                    <ChevronRight size={16} color="white" />
-                </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
 
             {/* Categories Grid */}
             <Text style={styles.sectionTitle}>Kategoriler</Text>
@@ -358,6 +411,12 @@ const ExplorerScreen = ({ navigation, route }) => {
                     onPress={() => navigateToCategory('audio')}
                 />
                 <CategoryCard
+                    title="Belgeler"
+                    icon={FileText}
+                    color="#6366f1"
+                    onPress={() => navigateToCategory('document')}
+                />
+                <CategoryCard
                     title="Uygulamalar"
                     icon={Package}
                     color="#f59e0b"
@@ -371,22 +430,8 @@ const ExplorerScreen = ({ navigation, route }) => {
                 />
             </View>
 
-            <View style={styles.recentHeader}>
-                <Text style={styles.sectionTitle}>Dosyalar</Text>
-                <TouchableOpacity onPress={() => navigation.push('Explorer', { path: defaultPath, title: 'Tüm Dosyalar' })}>
-                    <Text style={styles.seeAll}>Tümünü Gör</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
-    );
 
-    const CategoryCard = ({ title, icon: Icon, color, onPress }) => (
-        <TouchableOpacity style={styles.categoryCard} onPress={onPress}>
-            <View style={[styles.categoryIcon, { backgroundColor: color + '20' }]}>
-                <Icon size={28} color={color} />
-            </View>
-            <Text style={styles.categoryTitle}>{title}</Text>
-        </TouchableOpacity>
+        </ScrollView>
     );
 
     const renderFileItem = ({ item }) => {
@@ -479,13 +524,19 @@ const ExplorerScreen = ({ navigation, route }) => {
                                 {viewMode === 'list' ? <LayoutGrid size={22} color={theme.colors.text} /> : <ListIcon size={22} color={theme.colors.text} />}
                             </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                            style={styles.headerIcon}
+                            onPress={() => setShowHidden(!showHidden)}
+                        >
+                            {showHidden ? <Eye size={22} color={theme.colors.text} /> : <EyeOff size={22} color={theme.colors.text} />}
+                        </TouchableOpacity>
                     </View>
                 )}
             </View>
 
             {/* Content */}
             {isRoot && !isSearching ? (
-                <Dashboard />
+                renderDashboard()
             ) : (
                 <FlatList
                     data={filteredFiles}
@@ -508,10 +559,12 @@ const ExplorerScreen = ({ navigation, route }) => {
                 />
             )}
 
-            {/* General Actions FAB (Root only) */}
-            {isRoot && (
-                <TouchableOpacity style={styles.fab} onPress={() => Alert.alert('Yeni', 'Klasör veya Dosya oluştur')}>
-                    <Plus color="white" size={28} />
+
+
+            {/* Paste Action FAB */}
+            {clipboard && !isRoot && (
+                <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.secondary || '#10b981' }]} onPress={handlePaste}>
+                    <Clipboard color="white" size={28} />
                 </TouchableOpacity>
             )}
 
@@ -547,6 +600,22 @@ const ExplorerScreen = ({ navigation, route }) => {
                                 </View>
 
                                 <View style={styles.modalActions}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                                        <TouchableOpacity style={[styles.actionRow, { flex: 1, marginRight: 8 }]} onPress={() => addToClipboard(selectedFile, 'copy')}>
+                                            <View style={[styles.actionIcon, { backgroundColor: '#e2e8f0' }]}>
+                                                <Copy size={20} color={theme.colors.text} />
+                                            </View>
+                                            <Text style={styles.actionText}>Kopyala</Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity style={[styles.actionRow, { flex: 1 }]} onPress={() => addToClipboard(selectedFile, 'move')}>
+                                            <View style={[styles.actionIcon, { backgroundColor: '#e2e8f0' }]}>
+                                                <Scissors size={20} color={theme.colors.text} />
+                                            </View>
+                                            <Text style={styles.actionText}>Taşı</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
                                     <TouchableOpacity style={styles.actionRow} onPress={() => { setActionType('rename'); setRenameText(selectedFile.name); }}>
                                         <View style={[styles.actionIcon, { backgroundColor: '#f1f5f9' }]}>
                                             <Edit2 size={20} color={theme.colors.text} />
@@ -604,6 +673,16 @@ const ExplorerScreen = ({ navigation, route }) => {
         </SafeAreaView>
     );
 };
+
+// Moved outside
+const CategoryCard = ({ title, icon: Icon, color, onPress }) => (
+    <TouchableOpacity style={styles.categoryCard} onPress={onPress}>
+        <View style={[styles.categoryIcon, { backgroundColor: color + '20' }]}>
+            <Icon size={28} color={color} />
+        </View>
+        <Text style={styles.categoryTitle}>{title}</Text>
+    </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
     container: {
