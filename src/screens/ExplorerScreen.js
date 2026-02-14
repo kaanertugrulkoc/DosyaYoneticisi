@@ -49,12 +49,26 @@ import {
     ArrowDownAZ,
     ArrowUpAZ,
     Calendar,
-    maximize
+    maximize,
+    FileText
 } from 'lucide-react-native';
 import { theme } from '../theme/theme';
 import { getFileIcon, formatSize } from '../utils/fileHelpers';
 
 const { width } = Dimensions.get('window');
+
+function getCategoryTitle(cat) {
+    switch (cat) {
+        case 'image': return 'Fotoğraflar';
+        case 'video': return 'Videolar';
+        case 'audio': return 'Ses Dosyaları';
+        case 'document': return 'Belgeler';
+        case 'app': return 'Uygulamalar';
+        case 'download': return 'İndirilenler';
+        case 'trash': return 'Geri Dönüşüm';
+        default: return 'Dosyalar';
+    }
+}
 
 const ExplorerScreen = ({ navigation, route = {} }) => {
     const defaultPath = FileSystem.documentDirectory;
@@ -99,19 +113,6 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [renameText, setRenameText] = useState('');
     const [actionType, setActionType] = useState('menu'); // 'menu' | 'rename'
-
-    function getCategoryTitle(cat) {
-        switch (cat) {
-            case 'image': return 'Fotoğraflar';
-            case 'video': return 'Videolar';
-            case 'audio': return 'Ses Dosyaları';
-            case 'document': return 'Belgeler';
-            case 'app': return 'Uygulamalar';
-            case 'download': return 'İndirilenler';
-            case 'trash': return 'Geri Dönüşüm';
-            default: return 'Dosyalar';
-        }
-    }
 
     const ensureBaseDirectories = async () => {
         if (!defaultPath) return;
@@ -260,7 +261,7 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
         } finally {
             setLoading(false);
         }
-    }, [currentPath, category, showHidden]);
+    }, [currentPath, category, showHidden, sortOption]);
 
     useEffect(() => {
         loadFiles();
