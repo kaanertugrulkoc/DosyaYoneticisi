@@ -163,7 +163,12 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     };
 
     const matchType = (filename, type) => {
-        const ext = filename.split('.').pop().toLowerCase();
+        if (!filename || typeof filename !== 'string') return false;
+        const parts = filename.split('.');
+        if (parts.length < 2) return false;
+        const ext = parts.pop().toLowerCase();
+        if (!ext) return false;
+
         if (type === 'image') return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'].includes(ext);
         if (type === 'video') return ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext);
         if (type === 'audio') return ['mp3', 'wav', 'aac', 'flac', 'm4a'].includes(ext);
