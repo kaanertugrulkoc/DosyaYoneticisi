@@ -5,16 +5,18 @@ import {
     FlatList,
     TouchableOpacity,
     StyleSheet,
-    SafeAreaView,
     StatusBar,
-    Share,
-    Alert,
-    Dimensions,
     TextInput,
+    Alert,
     Modal,
+    ScrollView,
     ActivityIndicator,
-    ScrollView
+    Dimensions,
+    Animated,
+    Keyboard,
+    Clipboard as RNClipboard
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import {
