@@ -1,30 +1,99 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Image as ImageIcon, FolderOpen } from 'lucide-react-native';
 import ExplorerScreen from './src/screens/ExplorerScreen';
+import GalleryScreen from './src/screens/GalleryScreen';
 import { theme } from './src/theme/theme';
 
 const Stack = createStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// File Manager Stack
+const FileManagerStack = () => {
+  return (
+    <Stack.Navigator
+      initialRouteName="Explorer"
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: theme.colors.background },
+        animationEnabled: true,
+      }}
+    >
+      <Stack.Screen
+        name="Explorer"
+        component={ExplorerScreen}
+        options={{ title: 'Dosyalar' }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+// Gallery Stack
+const GalleryStack = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: theme.colors.background },
+        animationEnabled: true,
+      }}
+    >
+      <Stack.Screen
+        name="GalleryMain"
+        component={GalleryScreen}
+        options={{ title: 'Galeri' }}
+      />
+    </Stack.Navigator>
+  );
+};
 
 const App = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
-        <Stack.Navigator
-          initialRouteName="Explorer"
+        <Tab.Navigator
           screenOptions={{
             headerShown: false,
-            cardStyle: { backgroundColor: theme.colors.background },
-            animationEnabled: true,
+            tabBarActiveTintColor: '#6366f1',
+            tabBarInactiveTintColor: '#94a3b8',
+            tabBarStyle: {
+              backgroundColor: 'white',
+              borderTopWidth: 1,
+              borderTopColor: '#e2e8f0',
+              height: 60,
+              paddingBottom: 8,
+              paddingTop: 8,
+            },
+            tabBarLabelStyle: {
+              fontSize: 12,
+              fontWeight: '600',
+            },
           }}
         >
-          <Stack.Screen
-            name="Explorer"
-            component={ExplorerScreen}
-            options={{ title: 'Dosyalar' }}
+          <Tab.Screen
+            name="Gallery"
+            component={GalleryStack}
+            options={{
+              tabBarLabel: 'Galeri',
+              tabBarIcon: ({ color, size }) => (
+                <ImageIcon size={size} color={color} />
+              ),
+            }}
           />
-        </Stack.Navigator>
+          <Tab.Screen
+            name="FileManager"
+            component={FileManagerStack}
+            options={{
+              tabBarLabel: 'Dosya Yöneticisi',
+              tabBarIcon: ({ color, size }) => (
+                <FolderOpen size={size} color={color} />
+              ),
+            }}
+          />
+        </Tab.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
   );
