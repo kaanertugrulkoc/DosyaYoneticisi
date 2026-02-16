@@ -3,7 +3,7 @@
 
 birçok özellikler ve 2 uygulama tek uygulama içinde
 
-Bu proje, React Native (JavaScript) kullanılarak geliştirilmiş, modern tasarıma sahip bir Dosya Yöneticisi uygulamasıdır. Hem Android hem de iOS platformlarında çalışacak şekilde tasarlanmıştır.
+Bu proje, React Native (JavaScript) kullanılarak geliştirilmiş, modern tasarıma sahip bir Dosya Yöneticisi ve Galeri uygulamasıdır. Hem Android hem de iOS platformlarında çalışacak şekilde tasarlanmıştır.
 
 ## ✨ Özellikler
 

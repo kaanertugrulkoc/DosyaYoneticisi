@@ -258,7 +258,7 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
             });
 
             setFiles(sorted);
-            setFilteredFiles(sorted.filter(i => showHidden || !i.name.startsWith('.') || category === 'trash'));
+            setFilteredFiles(sorted.filter(i => i && i.name && (showHidden || !i.name.startsWith('.') || category === 'trash')));
 
         } catch (error) {
             console.error('File load error:', error);

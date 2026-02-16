@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Home, Settings } from 'lucide-react-native';
+import { LayoutGrid, FolderOpen } from 'lucide-react-native';
 import ExplorerScreen from './src/screens/ExplorerScreen';
 import GalleryScreen from './src/screens/GalleryScreen';
 import { theme } from './src/theme/theme';
@@ -81,7 +81,7 @@ const App = () => {
               options={{
                 tabBarLabel: 'Galeri',
                 tabBarIcon: ({ color, size }) => (
-                  <Home size={size} color={color} />
+                  <LayoutGrid size={size} color={color} />
                 ),
               }}
             />
@@ -91,7 +91,7 @@ const App = () => {
               options={{
                 tabBarLabel: 'Dosya Yöneticisi',
                 tabBarIcon: ({ color, size }) => (
-                  <Settings size={size} color={color} />
+                  <FolderOpen size={size} color={color} />
                 ),
               }}
             />
