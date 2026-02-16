@@ -10,21 +10,23 @@ export const formatSize = (bytes) => {
 };
 
 export const getFileIcon = (name, isDirectory) => {
-    if (isDirectory) return { Icon: Folder, color: theme.colors.folder };
+    if (isDirectory) return { Icon: Folder || File, color: theme.colors.folder };
+    if (!name || typeof name !== 'string') return { Icon: File, color: theme.colors.textSecondary };
 
-    const ext = name.split('.').pop().toLowerCase();
+    const parts = name.split('.');
+    const ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
 
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-        return { Icon: Image, color: theme.colors.image };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'].includes(ext)) {
+        return { Icon: Image || File, color: theme.colors.image };
     }
-    if (['mp4', 'mkv', 'mov', 'avi'].includes(ext)) {
-        return { Icon: Video, color: theme.colors.video };
+    if (['mp4', 'mkv', 'mov', 'avi', 'webm'].includes(ext)) {
+        return { Icon: Video || File, color: theme.colors.video };
     }
-    if (['mp3', 'wav', 'm4a', 'flac'].includes(ext)) {
-        return { Icon: Music, color: theme.colors.audio };
+    if (['mp3', 'wav', 'm4a', 'flac', 'aac'].includes(ext)) {
+        return { Icon: Music || File, color: theme.colors.audio };
     }
-    if (['pdf', 'doc', 'docx', 'txt'].includes(ext)) {
-        return { Icon: FileText, color: theme.colors.document };
+    if (['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'md'].includes(ext)) {
+        return { Icon: FileText || File, color: theme.colors.document };
     }
 
     return { Icon: File, color: theme.colors.textSecondary };

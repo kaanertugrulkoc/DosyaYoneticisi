@@ -46,10 +46,9 @@ import {
     Clipboard,
     Scissors,
     Share2,
-    ArrowDownAZ,
     ArrowUpAZ,
     Calendar,
-    maximize,
+    Maximize,
     FileText
 } from 'lucide-react-native';
 import { theme } from '../theme/theme';
@@ -273,11 +272,12 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     }, [loadFiles]);
 
     useEffect(() => {
-        if (searchQuery.trim() === '') {
-            setFilteredFiles(files.filter(i => showHidden || !i.name.startsWith('.') || category === 'trash'));
+        const query = (searchQuery || '').toLowerCase();
+        if (query.trim() === '') {
+            setFilteredFiles(files.filter(i => i && i.name && (showHidden || !i.name.startsWith('.') || category === 'trash')));
         } else {
             const filtered = files.filter(file =>
-                file.name.toLowerCase().includes(searchQuery.toLowerCase())
+                file && file.name && file.name.toLowerCase().includes(query)
             );
             setFilteredFiles(filtered);
         }
