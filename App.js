@@ -73,13 +73,13 @@ const App = () => {
             },
           }}
         >
-          <Tab.Screen
+          {/* <Tab.Screen
             name="Gallery"
             component={GalleryStack}
             options={{
               tabBarLabel: 'Galeri',
             }}
-          />
+          /> */}
           <Tab.Screen
             name="FileManager"
             component={FileManagerStack}

@@ -46,6 +46,7 @@ import {
     Clipboard,
     Scissors,
     Share2,
+    ArrowDownAZ,
     ArrowUpAZ,
     Calendar,
     Maximize,
