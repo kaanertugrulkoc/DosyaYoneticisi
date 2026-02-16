@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Image as ImageIcon, FolderOpen } from 'lucide-react-native';
+import { Image as ImageIconLucide, FolderOpen } from 'lucide-react-native';
 import ExplorerScreen from './src/screens/ExplorerScreen';
 import GalleryScreen from './src/screens/GalleryScreen';
 import { theme } from './src/theme/theme';
@@ -79,7 +79,7 @@ const App = () => {
             options={{
               tabBarLabel: 'Galeri',
               tabBarIcon: ({ color, size }) => (
-                <ImageIcon size={size} color={color} />
+                <ImageIconLucide size={size} color={color} />
               ),
             }}
           />

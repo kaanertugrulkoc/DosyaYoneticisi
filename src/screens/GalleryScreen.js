@@ -17,7 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import {
     Folder,
-    Image as ImageIcon,
+    Image as ImageIconLucide,
     Trash2,
     RotateCw,
     Crop,
@@ -180,7 +180,7 @@ const GalleryScreen = ({ navigation }) => {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.permissionContainer}>
-                    <ImageIcon size={64} color="#94a3b8" />
+                    <ImageIconLucide size={64} color="#94a3b8" />
                     <Text style={styles.permissionText}>Galeriye erişim izni gerekli</Text>
                     <TouchableOpacity
                         style={styles.permissionButton}
@@ -244,7 +244,7 @@ const GalleryScreen = ({ navigation }) => {
                     contentContainerStyle={styles.photoList}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <ImageIcon size={64} color="#94a3b8" />
+                            <ImageIconLucide size={64} color="#94a3b8" />
                             <Text style={styles.emptyText}>Fotoğraf bulunamadı</Text>
                         </View>
                     }
