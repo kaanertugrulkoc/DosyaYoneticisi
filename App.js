@@ -80,6 +80,9 @@ const App = () => {
               component={GalleryStack}
               options={{
                 tabBarLabel: 'Galeri',
+                tabBarIcon: ({ color, size }) => (
+                  <ImageIconLucide size={size} color={color} />
+                ),
               }}
             />
             <Tab.Screen
@@ -87,6 +90,9 @@ const App = () => {
               component={FileManagerStack}
               options={{
                 tabBarLabel: 'Dosya Yöneticisi',
+                tabBarIcon: ({ color, size }) => (
+                  <FolderOpen size={size} color={color} />
+                ),
               }}
             />
           </Tab.Navigator>
