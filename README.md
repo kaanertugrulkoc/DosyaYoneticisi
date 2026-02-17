@@ -1,4 +1,9 @@
 
+<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/82491601-822e-4367-896e-3c2763a49cf7" />
+<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/a4f5bdd4-599f-47fb-8ef2-5c128f991bde" />
+<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/affa1105-930d-463f-84f9-b70c03a28552" />
+
+
 # Dosya Yöneticisi (File Manager) ve Galeri Uygulaması
 
 birçok özellikler ve 2 uygulama tek uygulama içinde
@@ -49,9 +54,6 @@ npm run android
 
 Projeyi GitHub hesabınıza yüklemek için:
 ....
-
-
-<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/82491601-822e-4367-896e-3c2763a49cf7" />
 
 
 
