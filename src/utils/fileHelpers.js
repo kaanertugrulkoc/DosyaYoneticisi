@@ -9,27 +9,28 @@ export const formatSize = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-export const getFileIcon = (name, isDirectory) => {
-    if (isDirectory) return { Icon: Folder || File, color: theme.colors.folder };
-    if (!name || typeof name !== 'string') return { Icon: File, color: theme.colors.textSecondary };
+export const getFileIcon = (name, isDirectory, customTheme) => {
+    const activeTheme = customTheme || theme;
+    if (isDirectory) return { Icon: Folder || File, color: activeTheme.colors.folder };
+    if (!name || typeof name !== 'string') return { Icon: File, color: activeTheme.colors.textSecondary };
 
     const parts = name.split('.');
     const ext = parts.length > 1 ? parts.pop().toLowerCase() : '';
 
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'].includes(ext)) {
-        return { Icon: Image || File, color: theme.colors.image };
+        return { Icon: Image || File, color: activeTheme.colors.image };
     }
     if (['mp4', 'mkv', 'mov', 'avi', 'webm'].includes(ext)) {
-        return { Icon: Video || File, color: theme.colors.video };
+        return { Icon: Video || File, color: activeTheme.colors.video };
     }
     if (['mp3', 'wav', 'm4a', 'flac', 'aac'].includes(ext)) {
-        return { Icon: Music || File, color: theme.colors.audio };
+        return { Icon: Music || File, color: activeTheme.colors.audio };
     }
     if (['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'md'].includes(ext)) {
-        return { Icon: FileText || File, color: theme.colors.document };
+        return { Icon: FileText || File, color: activeTheme.colors.document };
     }
 
-    return { Icon: File, color: theme.colors.textSecondary };
+    return { Icon: File, color: activeTheme.colors.textSecondary };
 };
 
 export const getFileExtension = (name) => {

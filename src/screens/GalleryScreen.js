@@ -10,11 +10,13 @@ import {
     Dimensions,
     Alert,
     Modal,
-    ActivityIndicator
+    ActivityIndicator,
+    ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Video } from 'expo-av';
 import {
     Folder,
     Image as ImageIconLucide,
@@ -24,23 +26,32 @@ import {
     ArrowLeft,
     MoreVertical,
     Grid3x3,
-    List as ListIcon
+    List as ListIcon,
+    Heart,
+    Play,
+    Share2,
+    Maximize2
 } from 'lucide-react-native';
-import { theme } from '../theme/theme';
+import { useTheme } from '../context/ThemeContext';
+import { useFavorites } from '../context/FavoritesContext';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
-const IMAGE_SIZE = (width - 32) / COLUMN_COUNT;
+const IMAGE_SIZE = (width - 12) / COLUMN_COUNT;
 
 const GalleryScreen = ({ navigation }) => {
+    const { theme, isDarkMode } = useTheme();
+    const { toggleFavorite, isFavorite } = useFavorites();
+
     const [albums, setAlbums] = useState([]);
-    const [photos, setPhotos] = useState([]);
+    const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('albums'); // 'albums' | 'photos'
     const [selectedAlbum, setSelectedAlbum] = useState(null);
     const [hasPermission, setHasPermission] = useState(false);
-    const [selectedPhoto, setSelectedPhoto] = useState(null);
+    const [selectedAsset, setSelectedAsset] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [fullscreenVisible, setFullscreenVisible] = useState(false);
 
     useEffect(() => {
         requestPermissions();
@@ -60,45 +71,39 @@ const GalleryScreen = ({ navigation }) => {
         try {
             setLoading(true);
             const albumsData = await MediaLibrary.getAlbumsAsync();
-
-            // Get photo count for each album
             const albumsWithCount = await Promise.all(
                 albumsData.map(async (album) => {
-                    const assets = await MediaLibrary.getAssetsAsync({
+                    const assetsRes = await MediaLibrary.getAssetsAsync({
                         album: album.id,
-                        mediaType: 'photo',
                         first: 1
                     });
                     return {
                         ...album,
-                        assetCount: assets.totalCount,
-                        thumbnail: assets.assets[0]?.uri || null
+                        assetCount: album.assetCount || 0,
+                        thumbnail: assetsRes.assets[0]?.uri || null
                     };
                 })
             );
-
-            setAlbums(albumsWithCount);
+            setAlbums(albumsWithCount.sort((a, b) => b.assetCount - a.assetCount));
         } catch (error) {
             console.error('Album load error:', error);
-            Alert.alert('Hata', 'Albümler yüklenirken hata oluştu.');
         } finally {
             setLoading(false);
         }
     };
 
-    const loadPhotos = async (albumId) => {
+    const loadAssets = async (albumId) => {
         try {
             setLoading(true);
-            const assets = await MediaLibrary.getAssetsAsync({
+            const assetsRes = await MediaLibrary.getAssetsAsync({
                 album: albumId,
-                mediaType: 'photo',
                 first: 100,
-                sortBy: ['creationTime']
+                sortBy: ['creationTime'],
+                mediaType: ['photo', 'video']
             });
-            setPhotos(assets.assets);
+            setAssets(assetsRes.assets);
         } catch (error) {
-            console.error('Photos load error:', error);
-            Alert.alert('Hata', 'Fotoğraflar yüklenirken hata oluştu.');
+            console.error('Assets load error:', error);
         } finally {
             setLoading(false);
         }
@@ -107,85 +112,124 @@ const GalleryScreen = ({ navigation }) => {
     const openAlbum = (album) => {
         setSelectedAlbum(album);
         setViewMode('photos');
-        loadPhotos(album.id);
+        loadAssets(album.id);
     };
 
     const goBackToAlbums = () => {
         setViewMode('albums');
         setSelectedAlbum(null);
-        setPhotos([]);
+        setAssets([]);
     };
 
-    const openPhotoMenu = (photo) => {
-        setSelectedPhoto(photo);
+    const handleAssetPress = (asset) => {
+        setSelectedAsset(asset);
+        setFullscreenVisible(true);
+    };
+
+    const handleAssetLongPress = (asset) => {
+        setSelectedAsset(asset);
         setModalVisible(true);
     };
 
-    const deletePhoto = async () => {
+    const rotatePhoto = async () => {
+        if (!selectedAsset || selectedAsset.mediaType !== 'photo') return;
         try {
-            await MediaLibrary.deleteAssetsAsync([selectedPhoto.id]);
+            const result = await ImageManipulator.manipulateAsync(
+                selectedAsset.uri,
+                [{ rotate: 90 }],
+                { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            // In a real app, we'd save this back to MediaLibrary
+            // For now, we update local state or show success
+            updateAssetUri(selectedAsset.id, result.uri);
+            Alert.alert('Başarılı', 'Fotoğraf döndürüldü.');
             setModalVisible(false);
-            Alert.alert('Başarılı', 'Fotoğraf silindi.');
-            loadPhotos(selectedAlbum.id);
-        } catch (error) {
-            Alert.alert('Hata', 'Fotoğraf silinemedi: ' + error.message);
+        } catch (e) {
+            Alert.alert('Hata', 'Fotoğraf düzenlenemedi.');
         }
     };
 
-    const rotatePhoto = () => {
-        Alert.alert('Özellik', 'Döndürme özelliği yakında eklenecek.');
-        setModalVisible(false);
+    const cropPhoto = async () => {
+        if (!selectedAsset || selectedAsset.mediaType !== 'photo') return;
+        try {
+            const result = await ImageManipulator.manipulateAsync(
+                selectedAsset.uri,
+                [{ crop: { originX: 0, originY: 0, width: 500, height: 500 } }],
+                { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            updateAssetUri(selectedAsset.id, result.uri);
+            Alert.alert('Başarılı', 'Fotoğraf kırpıldı (500x500).');
+            setModalVisible(false);
+        } catch (e) {
+            Alert.alert('Hata', 'Fotoğraf düzenlenemedi.');
+        }
     };
 
-    const cropPhoto = () => {
-        Alert.alert('Özellik', 'Kırpma özelliği yakında eklenecek.');
-        setModalVisible(false);
+    const updateAssetUri = (id, newUri) => {
+        setAssets(prev => prev.map(a => a.id === id ? { ...a, uri: newUri } : a));
+        if (selectedAsset && selectedAsset.id === id) {
+            setSelectedAsset(prev => ({ ...prev, uri: newUri }));
+        }
+    };
+
+    const deleteAsset = async () => {
+        try {
+            await MediaLibrary.deleteAssetsAsync([selectedAsset.id]);
+            setAssets(prev => prev.filter(a => a.id !== selectedAsset.id));
+            setModalVisible(false);
+            setFullscreenVisible(false);
+            Alert.alert('Başarılı', 'Öğe silindi.');
+        } catch (error) {
+            Alert.alert('Hata', 'Silme işlemi başarısız.');
+        }
     };
 
     const renderAlbumItem = ({ item }) => (
         <TouchableOpacity
-            style={styles.albumCard}
+            style={[styles.albumCard, { backgroundColor: theme.colors.card }]}
             onPress={() => openAlbum(item)}
         >
             {item.thumbnail ? (
-                <Image
-                    source={{ uri: item.thumbnail }}
-                    style={styles.albumThumbnail}
-                />
+                <Image source={{ uri: item.thumbnail }} style={styles.albumThumbnail} />
             ) : (
-                <View style={[styles.albumThumbnail, styles.placeholderThumbnail]}>
-                    <Folder size={40} color="#94a3b8" />
+                <View style={[styles.albumThumbnail, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+                    <Folder size={40} color={theme.colors.textSecondary} />
                 </View>
             )}
             <View style={styles.albumInfo}>
-                <Text style={styles.albumTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.albumCount}>{item.assetCount} fotoğraf</Text>
+                <Text style={[styles.albumTitle, { color: theme.colors.text }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[styles.albumCount, { color: theme.colors.textSecondary }]}>{item.assetCount} öğe</Text>
             </View>
         </TouchableOpacity>
     );
 
-    const renderPhotoItem = ({ item }) => (
+    const renderAssetItem = ({ item }) => (
         <TouchableOpacity
-            style={styles.photoItem}
-            onLongPress={() => openPhotoMenu(item)}
+            style={styles.assetItem}
+            onPress={() => handleAssetPress(item)}
+            onLongPress={() => handleAssetLongPress(item)}
         >
-            <Image
-                source={{ uri: item.uri }}
-                style={styles.photoImage}
-            />
+            <Image source={{ uri: item.uri }} style={styles.assetImage} />
+            {item.mediaType === 'video' && (
+                <View style={styles.videoIndicator}>
+                    <Play size={16} color="white" fill="white" />
+                </View>
+            )}
+            {isFavorite(item) && (
+                <View style={styles.favoriteIndicator}>
+                    <Heart size={12} color={theme.colors.error} fill={theme.colors.error} />
+                </View>
+            )}
         </TouchableOpacity>
     );
 
     if (!hasPermission) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
                 <View style={styles.permissionContainer}>
-                    <ImageIconLucide size={64} color="#94a3b8" />
-                    <Text style={styles.permissionText}>Galeriye erişim izni gerekli</Text>
-                    <TouchableOpacity
-                        style={styles.permissionButton}
-                        onPress={requestPermissions}
-                    >
+                    <ImageIconLucide size={64} color={theme.colors.textSecondary} />
+                    <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>Galeriye erişim izni gerekli</Text>
+                    <TouchableOpacity style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]} onPress={requestPermissions}>
                         <Text style={styles.permissionButtonText}>İzin Ver</Text>
                     </TouchableOpacity>
                 </View>
@@ -194,25 +238,23 @@ const GalleryScreen = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
                 <View style={styles.headerLeft}>
                     {viewMode === 'photos' && (
                         <TouchableOpacity onPress={goBackToAlbums} style={styles.backButton}>
                             <ArrowLeft color={theme.colors.text} size={24} />
                         </TouchableOpacity>
                     )}
-                    <Text style={styles.headerTitle}>
+                    <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
                         {viewMode === 'albums' ? 'Albümler' : selectedAlbum?.title}
                     </Text>
                 </View>
                 {viewMode === 'photos' && (
-                    <View style={styles.headerRight}>
-                        <Text style={styles.photoCount}>{photos.length} fotoğraf</Text>
-                    </View>
+                    <Text style={[styles.photoCount, { color: theme.colors.textSecondary }]}>{assets.length} öğe</Text>
                 )}
             </View>
 
@@ -227,69 +269,87 @@ const GalleryScreen = ({ navigation }) => {
                     renderItem={renderAlbumItem}
                     keyExtractor={item => item.id}
                     numColumns={2}
-                    contentContainerStyle={styles.albumList}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Folder size={64} color="#94a3b8" />
-                            <Text style={styles.emptyText}>Albüm bulunamadı</Text>
-                        </View>
-                    }
+                    contentContainerStyle={styles.listPadding}
+                    ListEmptyComponent={<Text style={styles.emptyText}>Albüm bulunamadı</Text>}
                 />
             ) : (
                 <FlatList
-                    data={photos}
-                    renderItem={renderPhotoItem}
+                    data={assets}
+                    renderItem={renderAssetItem}
                     keyExtractor={item => item.id}
                     numColumns={COLUMN_COUNT}
-                    contentContainerStyle={styles.photoList}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <ImageIconLucide size={64} color="#94a3b8" />
-                            <Text style={styles.emptyText}>Fotoğraf bulunamadı</Text>
-                        </View>
-                    }
+                    contentContainerStyle={styles.assetList}
                 />
             )}
 
-            {/* Photo Actions Modal */}
-            <Modal
-                transparent={true}
-                visible={modalVisible}
-                animationType="fade"
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setModalVisible(false)}
-                >
-                    <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Fotoğraf İşlemleri</Text>
-                        </View>
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.actionRow} onPress={rotatePhoto}>
-                                <View style={[styles.actionIcon, { backgroundColor: '#e0f2fe' }]}>
-                                    <RotateCw size={20} color="#0284c7" />
-                                </View>
-                                <Text style={styles.actionText}>Döndür</Text>
+            {/* Fullscreen View */}
+            <Modal visible={fullscreenVisible} transparent={true} animationType="fade">
+                <View style={styles.fullscreenContainer}>
+                    <View style={styles.fullscreenHeader}>
+                        <TouchableOpacity onPress={() => setFullscreenVisible(false)}>
+                            <ArrowLeft color="white" size={28} />
+                        </TouchableOpacity>
+                        <View style={styles.fullscreenHeaderRight}>
+                            <TouchableOpacity onPress={() => toggleFavorite(selectedAsset)} style={styles.fullscreenIcon}>
+                                <Heart
+                                    size={24}
+                                    color={isFavorite(selectedAsset) ? theme.colors.error : "white"}
+                                    fill={isFavorite(selectedAsset) ? theme.colors.error : "transparent"}
+                                />
                             </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.actionRow} onPress={cropPhoto}>
-                                <View style={[styles.actionIcon, { backgroundColor: '#ddd6fe' }]}>
-                                    <Crop size={20} color="#7c3aed" />
-                                </View>
-                                <Text style={styles.actionText}>Kırp</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.actionRow} onPress={deletePhoto}>
-                                <View style={[styles.actionIcon, { backgroundColor: '#fee2e2' }]}>
-                                    <Trash2 size={20} color="#dc2626" />
-                                </View>
-                                <Text style={[styles.actionText, { color: '#dc2626' }]}>Sil</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.fullscreenIcon}>
+                                <MoreVertical color="white" size={24} />
                             </TouchableOpacity>
                         </View>
+                    </View>
+
+                    {selectedAsset?.mediaType === 'video' ? (
+                        <Video
+                            source={{ uri: selectedAsset.uri }}
+                            rate={1.0}
+                            volume={1.0}
+                            isMuted={false}
+                            resizeMode="contain"
+                            shouldPlay
+                            useNativeControls
+                            style={styles.fullscreenContent}
+                        />
+                    ) : (
+                        <Image source={{ uri: selectedAsset?.uri }} style={styles.fullscreenContent} resizeMode="contain" />
+                    )}
+                </View>
+            </Modal>
+
+            {/* Menu Modal */}
+            <Modal transparent={true} visible={modalVisible} animationType="slide">
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+                        <Text style={[styles.modalTitle, { color: theme.colors.text }]}>İşlemler</Text>
+
+                        {selectedAsset?.mediaType === 'photo' && (
+                            <>
+                                <TouchableOpacity style={styles.actionRow} onPress={rotatePhoto}>
+                                    <RotateCw size={20} color={theme.colors.primary} />
+                                    <Text style={[styles.actionText, { color: theme.colors.text }]}>90° Döndür</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.actionRow} onPress={cropPhoto}>
+                                    <Crop size={20} color={theme.colors.primary} />
+                                    <Text style={[styles.actionText, { color: theme.colors.text }]}>Kırp (500x500)</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
+
+                        <TouchableOpacity style={styles.actionRow} onPress={() => toggleFavorite(selectedAsset)}>
+                            <Heart size={20} color={isFavorite(selectedAsset) ? theme.colors.error : theme.colors.textSecondary} />
+                            <Text style={[styles.actionText, { color: theme.colors.text }]}>
+                                {isFavorite(selectedAsset) ? 'Favorilerden Çıkar' : 'Favorilere Ekle'}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.actionRow} onPress={deleteAsset}>
+                            <Trash2 size={20} color={theme.colors.error} />
+                            <Text style={[styles.actionText, { color: theme.colors.error }]}>Sil</Text>
+                        </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
             </Modal>
@@ -298,177 +358,39 @@ const GalleryScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#f8fafc',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    backButton: {
-        marginRight: 12,
-    },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#1e293b',
-    },
-    headerRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    photoCount: {
-        fontSize: 14,
-        color: '#64748b',
-        fontWeight: '500',
-    },
-    permissionContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 32,
-    },
-    permissionText: {
-        fontSize: 16,
-        color: '#64748b',
-        marginTop: 16,
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    permissionButton: {
-        backgroundColor: '#6366f1',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 12,
-    },
-    permissionButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    albumList: {
-        padding: 16,
-    },
-    albumCard: {
-        flex: 1,
-        margin: 8,
-        backgroundColor: 'white',
-        borderRadius: 16,
-        overflow: 'hidden',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    albumThumbnail: {
-        width: '100%',
-        height: 150,
-        backgroundColor: '#f1f5f9',
-    },
-    placeholderThumbnail: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    albumInfo: {
-        padding: 12,
-    },
-    albumTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1e293b',
-        marginBottom: 4,
-    },
-    albumCount: {
-        fontSize: 14,
-        color: '#64748b',
-    },
-    photoList: {
-        padding: 4,
-    },
-    photoItem: {
-        width: IMAGE_SIZE,
-        height: IMAGE_SIZE,
-        padding: 2,
-    },
-    photoImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 4,
-    },
-    emptyContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 100,
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#94a3b8',
-        marginTop: 16,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: 'white',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingBottom: 32,
-    },
-    modalHeader: {
-        padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1e293b',
-    },
-    modalActions: {
-        padding: 16,
-    },
-    actionRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        marginBottom: 8,
-    },
-    actionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    actionText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#334155',
-    },
+    container: { flex: 1 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    headerTitle: { fontSize: 22, fontWeight: '800' },
+    backButton: { marginRight: 15 },
+    photoCount: { fontSize: 14, fontWeight: '600' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    listPadding: { padding: 8 },
+    albumCard: { flex: 1, margin: 8, borderRadius: 16, overflow: 'hidden', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+    albumThumbnail: { width: '100%', height: 160 },
+    albumInfo: { padding: 12 },
+    albumTitle: { fontSize: 16, fontWeight: '700', marginBottom: 2 },
+    albumCount: { fontSize: 12 },
+    assetList: { padding: 4 },
+    assetItem: { width: IMAGE_SIZE, height: IMAGE_SIZE, margin: 2 },
+    assetImage: { width: '100%', height: '100%', borderRadius: 8 },
+    videoIndicator: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 4 },
+    favoriteIndicator: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.8)', padding: 4, borderRadius: 12 },
+    fullscreenContainer: { flex: 1, backgroundColor: 'black' },
+    fullscreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.3)' },
+    fullscreenHeaderRight: { flexDirection: 'row' },
+    fullscreenIcon: { marginLeft: 20 },
+    fullscreenContent: { flex: 1, width: '100%', height: '100%' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, paddingBottom: 40 },
+    modalTitle: { fontSize: 20, fontWeight: '800', marginBottom: 20 },
+    actionRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15 },
+    actionText: { fontSize: 16, fontWeight: '600', marginLeft: 15 },
+    permissionContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+    permissionText: { fontSize: 16, marginVertical: 20, textAlign: 'center' },
+    permissionButton: { paddingHorizontal: 30, paddingVertical: 15, borderRadius: 15 },
+    permissionButtonText: { color: 'white', fontWeight: '700' },
+    emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16 }
 });
 
 export default GalleryScreen;
