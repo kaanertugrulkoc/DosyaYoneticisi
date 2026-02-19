@@ -3,6 +3,9 @@
 <img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/a4f5bdd4-599f-47fb-8ef2-5c128f991bde" />
 <img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/affa1105-930d-463f-84f9-b70c03a28552" />
 
+<img width="320" height="580" alt="image" src="https://github.com/user-attachments/assets/f52931ef-fe05-4fca-8b12-f57b8d275cce" />
+
+
 
 # Dosya Yöneticisi (File Manager) ve Galeri Uygulaması
 
