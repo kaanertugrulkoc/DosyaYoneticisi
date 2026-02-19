@@ -5,11 +5,12 @@ import {
     StyleSheet,
     FlatList,
     TouchableOpacity,
-    SafeAreaView,
     ActivityIndicator,
-    Alert
+    Alert,
+    Platform
 } from 'react-native';
-import { Copy, Trash2, ArrowLeft, CheckCircle2 } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Files, Trash2, ArrowLeft, CheckCircle2 } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../context/ThemeContext';
 import { formatSize } from '../utils/fileHelpers';
@@ -62,39 +63,39 @@ const DuplicateFinderScreen = ({ navigation }) => {
     };
 
     const renderItem = ({ item }) => (
-        <View style={[styles.duplicateCard, { backgroundColor: theme.colors.card }]}>
+        <View style={[styles.duplicateCard, { backgroundColor: theme?.colors?.card || '#ffffff' }]}>
             <View style={styles.cardHeader}>
-                <Copy size={20} color={theme.colors.primary} />
-                <Text style={[styles.fileName, { color: theme.colors.text }]} numberOfLines={1}>{item.name}</Text>
+                <Files size={20} color={theme?.colors?.primary || '#6366f1'} />
+                <Text style={[styles.fileName, { color: theme?.colors?.text || '#1e293b' }]} numberOfLines={1}>{item.name}</Text>
             </View>
-            <Text style={[styles.fileInfo, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.fileInfo, { color: theme?.colors?.textSecondary || '#64748b' }]}>
                 Boyut: {formatSize(item.size)} | Orijinal: {item.original}
             </Text>
             <TouchableOpacity
-                style={[styles.deleteBtn, { backgroundColor: theme.colors.error + '20' }]}
+                style={[styles.deleteBtn, { backgroundColor: (theme?.colors?.error || '#ef4444') + '20' }]}
                 onPress={() => deleteDuplicate(item.uri)}
             >
-                <Trash2 size={18} color={theme.colors.error} />
-                <Text style={[styles.deleteText, { color: theme.colors.error }]}>Kopyayı Sil</Text>
+                <Trash2 size={18} color={theme?.colors?.error || '#ef4444'} />
+                <Text style={[styles.deleteText, { color: theme?.colors?.error || '#ef4444' }]}>Kopyayı Sil</Text>
             </TouchableOpacity>
         </View>
     );
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme?.colors?.background || '#f8fafc' }]} edges={['top', 'left', 'right']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ArrowLeft size={24} color={theme.colors.text} />
+                    <ArrowLeft size={24} color={theme?.colors?.text || '#1e293b'} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Kopya Dosya Bulucu</Text>
+                <Text style={[styles.headerTitle, { color: theme?.colors?.text || '#1e293b' }]}>Kopya Dosya Bulucu</Text>
             </View>
 
             <View style={styles.introBox}>
-                <Text style={[styles.introText, { color: theme.colors.textSecondary }]}>
+                <Text style={[styles.introText, { color: theme?.colors?.textSecondary || '#64748b' }]}>
                     Cihazınızdaki aynı boyuta ve türe sahip olan kopya dosyaları tarayarak yer açın.
                 </Text>
                 <TouchableOpacity
-                    style={[styles.scanBtn, { backgroundColor: theme.colors.primary }]}
+                    style={[styles.scanBtn, { backgroundColor: theme?.colors?.primary || '#6366f1' }]}
                     onPress={scanForDuplicates}
                     disabled={loading}
                 >
@@ -110,8 +111,8 @@ const DuplicateFinderScreen = ({ navigation }) => {
                 ListEmptyComponent={
                     !loading && duplicates.length === 0 && (
                         <View style={styles.emptyContainer}>
-                            <CheckCircle2 size={64} color={theme.colors.success} opacity={0.5} />
-                            <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Tarama yapın veya tertemiz cihazın tadını çıkarın!</Text>
+                            <CheckCircle2 size={64} color={theme?.colors?.success || '#22c55e'} opacity={0.5} />
+                            <Text style={[styles.emptyText, { color: theme?.colors?.textSecondary || '#64748b' }]}>Tarama yapın veya tertemiz cihazın tadını çıkarın!</Text>
                         </View>
                     )
                 }

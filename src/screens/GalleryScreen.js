@@ -27,13 +27,11 @@ import {
     MoreVertical,
     Grid3x3,
     List as ListIcon,
-    Heart,
     Play,
     Share2,
     Maximize2
 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import { useFavorites } from '../context/FavoritesContext';
 
 const { width, height } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -41,7 +39,6 @@ const IMAGE_SIZE = (width - 12) / COLUMN_COUNT;
 
 const GalleryScreen = ({ navigation }) => {
     const { theme, isDarkMode } = useTheme();
-    const { toggleFavorite, isFavorite } = useFavorites();
 
     const [albums, setAlbums] = useState([]);
     const [assets, setAssets] = useState([]);
@@ -139,8 +136,6 @@ const GalleryScreen = ({ navigation }) => {
                 [{ rotate: 90 }],
                 { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
             );
-            // In a real app, we'd save this back to MediaLibrary
-            // For now, we update local state or show success
             updateAssetUri(selectedAsset.id, result.uri);
             Alert.alert('Başarılı', 'Fotoğraf döndürüldü.');
             setModalVisible(false);
@@ -186,19 +181,19 @@ const GalleryScreen = ({ navigation }) => {
 
     const renderAlbumItem = ({ item }) => (
         <TouchableOpacity
-            style={[styles.albumCard, { backgroundColor: theme.colors.card }]}
+            style={[styles.albumCard, { backgroundColor: theme?.colors?.card || '#ffffff' }]}
             onPress={() => openAlbum(item)}
         >
             {item.thumbnail ? (
                 <Image source={{ uri: item.thumbnail }} style={styles.albumThumbnail} />
             ) : (
-                <View style={[styles.albumThumbnail, { backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-                    <Folder size={40} color={theme.colors.textSecondary} />
+                <View style={[styles.albumThumbnail, { backgroundColor: theme?.colors?.background || '#f8fafc', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Folder size={40} color={theme?.colors?.textSecondary || '#64748b'} />
                 </View>
             )}
             <View style={styles.albumInfo}>
-                <Text style={[styles.albumTitle, { color: theme.colors.text }]} numberOfLines={1}>{item.title}</Text>
-                <Text style={[styles.albumCount, { color: theme.colors.textSecondary }]}>{item.assetCount} öğe</Text>
+                <Text style={[styles.albumTitle, { color: theme?.colors?.text || '#1e293b' }]} numberOfLines={1}>{item.title}</Text>
+                <Text style={[styles.albumCount, { color: theme?.colors?.textSecondary || '#64748b' }]}>{item.assetCount} öğe</Text>
             </View>
         </TouchableOpacity>
     );
@@ -215,21 +210,16 @@ const GalleryScreen = ({ navigation }) => {
                     <Play size={16} color="white" fill="white" />
                 </View>
             )}
-            {isFavorite(item) && (
-                <View style={styles.favoriteIndicator}>
-                    <Heart size={12} color={theme.colors.error} fill={theme.colors.error} />
-                </View>
-            )}
         </TouchableOpacity>
     );
 
     if (!hasPermission) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+            <SafeAreaView style={[styles.container, { backgroundColor: theme?.colors?.background || '#f8fafc' }]}>
                 <View style={styles.permissionContainer}>
-                    <ImageIconLucide size={64} color={theme.colors.textSecondary} />
-                    <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>Galeriye erişim izni gerekli</Text>
-                    <TouchableOpacity style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]} onPress={requestPermissions}>
+                    <ImageIconLucide size={64} color={theme?.colors?.textSecondary || '#64748b'} />
+                    <Text style={[styles.permissionText, { color: theme?.colors?.textSecondary || '#64748b' }]}>Galeriye erişim izni gerekli</Text>
+                    <TouchableOpacity style={[styles.permissionButton, { backgroundColor: theme?.colors?.primary || '#6366f1' }]} onPress={requestPermissions}>
                         <Text style={styles.permissionButtonText}>İzin Ver</Text>
                     </TouchableOpacity>
                 </View>
@@ -238,30 +228,30 @@ const GalleryScreen = ({ navigation }) => {
     }
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme?.colors?.background || '#f8fafc' }]} edges={['top', 'left', 'right']}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
             {/* Header */}
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.header, { borderBottomColor: theme?.colors?.border || '#e2e8f0' }]}>
                 <View style={styles.headerLeft}>
                     {viewMode === 'photos' && (
                         <TouchableOpacity onPress={goBackToAlbums} style={styles.backButton}>
-                            <ArrowLeft color={theme.colors.text} size={24} />
+                            <ArrowLeft color={theme?.colors?.text || '#1e293b'} size={24} />
                         </TouchableOpacity>
                     )}
-                    <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+                    <Text style={[styles.headerTitle, { color: theme?.colors?.text || '#1e293b' }]}>
                         {viewMode === 'albums' ? 'Albümler' : selectedAlbum?.title}
                     </Text>
                 </View>
                 {viewMode === 'photos' && (
-                    <Text style={[styles.photoCount, { color: theme.colors.textSecondary }]}>{assets.length} öğe</Text>
+                    <Text style={[styles.photoCount, { color: theme?.colors?.textSecondary || '#64748b' }]}>{assets.length} öğe</Text>
                 )}
             </View>
 
             {/* Content */}
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.colors.primary} />
+                    <ActivityIndicator size="large" color={theme?.colors?.primary || '#6366f1'} />
                 </View>
             ) : viewMode === 'albums' ? (
                 <FlatList
@@ -290,13 +280,6 @@ const GalleryScreen = ({ navigation }) => {
                             <ArrowLeft color="white" size={28} />
                         </TouchableOpacity>
                         <View style={styles.fullscreenHeaderRight}>
-                            <TouchableOpacity onPress={() => toggleFavorite(selectedAsset)} style={styles.fullscreenIcon}>
-                                <Heart
-                                    size={24}
-                                    color={isFavorite(selectedAsset) ? theme.colors.error : "white"}
-                                    fill={isFavorite(selectedAsset) ? theme.colors.error : "transparent"}
-                                />
-                            </TouchableOpacity>
                             <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.fullscreenIcon}>
                                 <MoreVertical color="white" size={24} />
                             </TouchableOpacity>
@@ -323,32 +306,25 @@ const GalleryScreen = ({ navigation }) => {
             {/* Menu Modal */}
             <Modal transparent={true} visible={modalVisible} animationType="slide">
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
-                    <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-                        <Text style={[styles.modalTitle, { color: theme.colors.text }]}>İşlemler</Text>
+                    <View style={[styles.modalContent, { backgroundColor: theme?.colors?.card || '#ffffff' }]}>
+                        <Text style={[styles.modalTitle, { color: theme?.colors?.text || '#1e293b' }]}>İşlemler</Text>
 
                         {selectedAsset?.mediaType === 'photo' && (
                             <>
                                 <TouchableOpacity style={styles.actionRow} onPress={rotatePhoto}>
-                                    <RotateCw size={20} color={theme.colors.primary} />
-                                    <Text style={[styles.actionText, { color: theme.colors.text }]}>90° Döndür</Text>
+                                    <RotateCw size={20} color={theme?.colors?.primary || '#6366f1'} />
+                                    <Text style={[styles.actionText, { color: theme?.colors?.text || '#1e293b' }]}>90° Döndür</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.actionRow} onPress={cropPhoto}>
-                                    <Crop size={20} color={theme.colors.primary} />
-                                    <Text style={[styles.actionText, { color: theme.colors.text }]}>Kırp (500x500)</Text>
+                                    <Crop size={20} color={theme?.colors?.primary || '#6366f1'} />
+                                    <Text style={[styles.actionText, { color: theme?.colors?.text || '#1e293b' }]}>Kırp (500x500)</Text>
                                 </TouchableOpacity>
                             </>
                         )}
 
-                        <TouchableOpacity style={styles.actionRow} onPress={() => toggleFavorite(selectedAsset)}>
-                            <Heart size={20} color={isFavorite(selectedAsset) ? theme.colors.error : theme.colors.textSecondary} />
-                            <Text style={[styles.actionText, { color: theme.colors.text }]}>
-                                {isFavorite(selectedAsset) ? 'Favorilerden Çıkar' : 'Favorilere Ekle'}
-                            </Text>
-                        </TouchableOpacity>
-
                         <TouchableOpacity style={styles.actionRow} onPress={deleteAsset}>
-                            <Trash2 size={20} color={theme.colors.error} />
-                            <Text style={[styles.actionText, { color: theme.colors.error }]}>Sil</Text>
+                            <Trash2 size={20} color={theme?.colors?.error || '#ef4444'} />
+                            <Text style={[styles.actionText, { color: theme?.colors?.error || '#ef4444' }]}>Sil</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
@@ -375,7 +351,6 @@ const styles = StyleSheet.create({
     assetItem: { width: IMAGE_SIZE, height: IMAGE_SIZE, margin: 2 },
     assetImage: { width: '100%', height: '100%', borderRadius: 8 },
     videoIndicator: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', padding: 4, borderRadius: 4 },
-    favoriteIndicator: { position: 'absolute', bottom: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.8)', padding: 4, borderRadius: 12 },
     fullscreenContainer: { flex: 1, backgroundColor: 'black' },
     fullscreenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50, position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.3)' },
     fullscreenHeaderRight: { flexDirection: 'row' },

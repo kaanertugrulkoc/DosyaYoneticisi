@@ -14,8 +14,8 @@ import {
     Dimensions,
     Animated,
     Keyboard,
-    Clipboard as RNClipboard,
-    Share
+    Share,
+    Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -28,7 +28,6 @@ import {
     MoreVertical,
     HardDrive,
     LayoutGrid,
-    List as ListIcon,
     Plus,
     Image as ImageIcon,
     Video,
@@ -46,7 +45,7 @@ import {
     RefreshCw,
     Eye,
     EyeOff,
-    Copy,
+    Files,
     Clipboard,
     Scissors,
     Share2,
@@ -62,14 +61,13 @@ import {
     Menu
 } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import { useFavorites } from '../context/FavoritesContext';
+// useFavorites removed because Favorites feature is being removed
 import { getFileIcon, formatSize } from '../utils/fileHelpers';
 
 const { width } = Dimensions.get('window');
 
 const ExplorerScreen = ({ navigation, route = {} }) => {
     const { theme, isDarkMode } = useTheme();
-    const { toggleFavorite, isFavorite } = useFavorites();
 
     const defaultPath = FileSystem.documentDirectory;
     const params = route.params || {};
@@ -102,7 +100,6 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
             setLoading(true);
             let items = [];
             if (category) {
-                // Simplified category scan for demo
                 const allFiles = await FileSystem.readDirectoryAsync(defaultPath);
                 items = await Promise.all(allFiles.map(async name => {
                     const path = defaultPath + name;
@@ -128,7 +125,7 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     };
 
     const matchType = (filename, type) => {
-        const ext = filename.split('.').pop().toLowerCase();
+        const ext = filename?.split('.').pop().toLowerCase();
         const types = {
             image: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
             video: ['mp4', 'mov', 'avi', 'mkv'],
@@ -210,7 +207,7 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
             <TouchableOpacity
                 style={[
                     styles.fileItem,
-                    { backgroundColor: isSelected ? theme.colors.primary + '20' : theme.colors.card }
+                    { backgroundColor: isSelected ? (theme?.colors?.primary || '#6366f1') + '20' : (theme?.colors?.card || '#ffffff') }
                 ]}
                 onPress={() => handleFilePress(item)}
                 onLongPress={() => {
@@ -219,29 +216,21 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
                 }}
             >
                 <View style={styles.fileLeft}>
-                    <View style={[styles.iconBox, { backgroundColor: theme.colors.background }]}>
+                    <View style={[styles.iconBox, { backgroundColor: theme?.colors?.background || '#f8fafc' }]}>
                         <Icon size={24} color={color} />
                     </View>
                     <View style={styles.fileInfo}>
-                        <Text style={[styles.fileName, { color: theme.colors.text }]} numberOfLines={1}>{item.name}</Text>
-                        <Text style={[styles.fileSize, { color: theme.colors.textSecondary }]}>
+                        <Text style={[styles.fileName, { color: theme?.colors?.text || '#1e293b' }]} numberOfLines={1}>{item.name}</Text>
+                        <Text style={[styles.fileSize, { color: theme?.colors?.textSecondary || '#64748b' }]}>
                             {item.isDirectory ? 'Klasör' : formatSize(item.size)}
                         </Text>
                     </View>
                 </View>
                 <View style={styles.fileRight}>
-                    {isSelectionMode ? (
-                        <View style={[styles.checkbox, { borderColor: theme.colors.primary, backgroundColor: isSelected ? theme.colors.primary : 'transparent' }]}>
+                    {isSelectionMode && (
+                        <View style={[styles.checkbox, { borderColor: (theme?.colors?.primary || '#6366f1'), backgroundColor: isSelected ? (theme?.colors?.primary || '#6366f1') : 'transparent' }]}>
                             {isSelected && <Check size={14} color="white" />}
                         </View>
-                    ) : (
-                        <TouchableOpacity onPress={() => toggleFavorite({ ...item, isFile: true })}>
-                            <Heart
-                                size={20}
-                                color={isFavorite(item) ? theme.colors.error : theme.colors.textSecondary}
-                                fill={isFavorite(item) ? theme.colors.error : 'transparent'}
-                            />
-                        </TouchableOpacity>
                     )}
                 </View>
             </TouchableOpacity>
@@ -249,56 +238,56 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
     };
 
     const chartData = [
-        { name: 'Görsel', population: 40, color: theme.colors.image, legendFontColor: theme.colors.text },
-        { name: 'Video', population: 20, color: theme.colors.video, legendFontColor: theme.colors.text },
-        { name: 'Belge', population: 15, color: theme.colors.document, legendFontColor: theme.colors.text },
-        { name: 'Diğer', population: 25, color: theme.colors.textSecondary, legendFontColor: theme.colors.text },
+        { name: 'Görsel', population: 40, color: theme?.colors?.image || '#ec4899', legendFontColor: theme?.colors?.text || '#1e293b' },
+        { name: 'Video', population: 20, color: theme?.colors?.video || '#8b5cf6', legendFontColor: theme?.colors?.text || '#1e293b' },
+        { name: 'Belge', population: 15, color: theme?.colors?.document || '#3b82f6', legendFontColor: theme?.colors?.text || '#1e293b' },
+        { name: 'Diğer', population: 25, color: theme?.colors?.textSecondary || '#64748b', legendFontColor: theme?.colors?.text || '#1e293b' },
     ];
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme?.colors?.background || '#f8fafc' }]} edges={['top', 'left', 'right']}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
 
-            <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.header, { borderBottomColor: theme?.colors?.border || '#e2e8f0' }]}>
                 <View style={styles.headerTop}>
                     {isRoot ? (
-                        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Dosyalarım</Text>
+                        <Text style={[styles.headerTitle, { color: theme?.colors?.text || '#1e293b' }]}>Dosyalarım</Text>
                     ) : (
                         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                            <ArrowLeft size={24} color={theme.colors.text} />
+                            <ArrowLeft size={24} color={theme?.colors?.text || '#1e293b'} />
                         </TouchableOpacity>
                     )}
                     <View style={styles.headerActions}>
                         <TouchableOpacity onPress={() => setShowStats(!showStats)} style={styles.actionIcon}>
-                            <PieChartIcon size={24} color={theme.colors.text} />
+                            <PieChartIcon size={24} color={theme?.colors?.text || '#1e293b'} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setIsSearching(!isSearching)} style={styles.actionIcon}>
-                            <Search size={24} color={theme.colors.text} />
+                            <Search size={24} color={theme?.colors?.text || '#1e293b'} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
                 {isSearching && (
-                    <View style={[styles.searchBar, { backgroundColor: theme.colors.card }]}>
-                        <Search size={18} color={theme.colors.textSecondary} />
+                    <View style={[styles.searchBar, { backgroundColor: theme?.colors?.card || '#ffffff' }]}>
+                        <Search size={18} color={theme?.colors?.textSecondary || '#64748b'} />
                         <TextInput
-                            style={[styles.searchInput, { color: theme.colors.text }]}
+                            style={[styles.searchInput, { color: theme?.colors?.text || '#1e293b' }]}
                             placeholder="Dosya ara..."
-                            placeholderTextColor={theme.colors.textSecondary}
+                            placeholderTextColor={theme?.colors?.textSecondary || '#64748b'}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             autoFocus
                         />
                         <TouchableOpacity onPress={() => setIsSearching(false)}>
-                            <X size={18} color={theme.colors.textSecondary} />
+                            <X size={18} color={theme?.colors?.textSecondary || '#64748b'} />
                         </TouchableOpacity>
                     </View>
                 )}
             </View>
 
             {showStats && (
-                <View style={[styles.statsCard, { backgroundColor: theme.colors.card }]}>
-                    <Text style={[styles.statsTitle, { color: theme.colors.text }]}>Depolama Analizi</Text>
+                <View style={[styles.statsCard, { backgroundColor: theme?.colors?.card || '#ffffff' }]}>
+                    <Text style={[styles.statsTitle, { color: theme?.colors?.text || '#1e293b' }]}>Depolama Analizi</Text>
                     <PieChart
                         data={chartData}
                         width={width - 40}
@@ -320,52 +309,50 @@ const ExplorerScreen = ({ navigation, route = {} }) => {
                 contentContainerStyle={styles.listContent}
                 ListEmptyComponent={
                     <View style={styles.emptyBox}>
-                        <Folder size={64} color={theme.colors.border} />
-                        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Burada hiç dosya yok</Text>
+                        <Folder size={64} color={theme?.colors?.border || '#e2e8f0'} />
+                        <Text style={[styles.emptyText, { color: theme?.colors?.textSecondary || '#64748b' }]}>Burada hiç dosya yok</Text>
                     </View>
                 }
             />
 
             {isSelectionMode && (
-                <View style={[styles.selectionToolbar, { backgroundColor: theme.colors.card, borderTopColor: theme.colors.border }]}>
+                <View style={[styles.selectionToolbar, { backgroundColor: theme?.colors?.card || '#ffffff', borderTopColor: theme?.colors?.border || '#e2e8f0' }]}>
                     <TouchableOpacity style={styles.toolIcon} onPress={shareFiles}>
-                        <Share2 size={24} color={theme.colors.primary} />
-                        <Text style={[styles.toolText, { color: theme.colors.text }]}>Paylaş</Text>
+                        <Share2 size={24} color={theme?.colors?.primary || '#6366f1'} />
+                        <Text style={[styles.toolText, { color: theme?.colors?.text || '#1e293b' }]}>Paylaş</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolIcon} onPress={zipFiles}>
-                        <Archive size={24} color={theme.colors.primary} />
-                        <Text style={[styles.toolText, { color: theme.colors.text }]}>ZIP</Text>
+                        <Archive size={24} color={theme?.colors?.primary || '#6366f1'} />
+                        <Text style={[styles.toolText, { color: theme?.colors?.text || '#1e293b' }]}>ZIP</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolIcon} onPress={deleteSelected}>
-                        <Trash2 size={24} color={theme.colors.error} />
-                        <Text style={[styles.toolText, { color: theme.colors.error }]}>Sil</Text>
+                        <Trash2 size={24} color={theme?.colors?.error || '#ef4444'} />
+                        <Text style={[styles.toolText, { color: theme?.colors?.error || '#ef4444' }]}>Sil</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.toolIcon} onPress={() => { setIsSelectionMode(false); setSelectedFiles([]); }}>
-                        <X size={24} color={theme.colors.textSecondary} />
-                        <Text style={[styles.toolText, { color: theme.colors.textSecondary }]}>İptal</Text>
+                        <X size={24} color={theme?.colors?.textSecondary || '#64748b'} />
+                        <Text style={[styles.toolText, { color: theme?.colors?.textSecondary || '#64748b' }]}>İptal</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
             {!isSelectionMode && (
                 <TouchableOpacity
-                    style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+                    style={[styles.fab, { backgroundColor: theme?.colors?.primary || '#6366f1' }]}
                     onPress={() => { setActionType('newFolder'); setModalVisible(true); }}
                 >
                     <Plus size={30} color="white" />
                 </TouchableOpacity>
             )}
 
-            {/* Menu Modal Placeholder */}
             <Modal visible={modalVisible} transparent animationType="slide">
                 <TouchableOpacity style={styles.overlay} onPress={() => setModalVisible(false)}>
-                    <View style={[styles.modalSheet, { backgroundColor: theme.colors.card }]}>
-                        <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                    <View style={[styles.modalSheet, { backgroundColor: theme?.colors?.card || '#ffffff' }]}>
+                        <Text style={[styles.modalTitle, { color: theme?.colors?.text || '#1e293b' }]}>
                             {actionType === 'newFolder' ? 'Yeni Klasör' : selectedFile?.name}
                         </Text>
-                        {/* Actions... */}
                         <TouchableOpacity style={styles.actionBtn} onPress={() => setModalVisible(false)}>
-                            <Text style={{ color: theme.colors.primary, fontWeight: '700' }}>Kapat</Text>
+                            <Text style={{ color: theme?.colors?.primary || '#6366f1', fontWeight: '700' }}>Kapat</Text>
                         </TouchableOpacity>
                     </View>
                 </TouchableOpacity>

@@ -6,10 +6,11 @@ import {
     TouchableOpacity,
     Switch,
     ScrollView,
-    SafeAreaView,
     StatusBar,
-    Alert
+    Alert,
+    Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     Moon,
     Sun,
@@ -20,7 +21,7 @@ import {
     HardDrive,
     Bell,
     Languages,
-    Copy
+    Files
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
@@ -92,13 +93,13 @@ const SettingsScreen = () => {
     if (!theme) return null;
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'left', 'right']}>
             <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
             <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
                 <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Ayarlar</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.section}>
                     <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Görünüm</Text>
                     <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -139,7 +140,7 @@ const SettingsScreen = () => {
                             onPress={clearCache}
                         />
                         <SettingRow
-                            icon={Copy}
+                            icon={Files}
                             label="Kopya Dosya Bulucu"
                             type="chevron"
                             onPress={() => navigation.navigate('DuplicateFinder')}
@@ -160,7 +161,7 @@ const SettingsScreen = () => {
                             icon={Bell}
                             label="Bildirimler"
                             type="chevron"
-                            onPress={() => Alert.alert('Bilgi', 'Bildirim ayarları yakında eklenecek.')}
+                            onPress={() => Alert.alert('Bilgi', 'Bildirim ayarlar yakında eklenecek.')}
                         />
                         <SettingRow
                             icon={Info}
