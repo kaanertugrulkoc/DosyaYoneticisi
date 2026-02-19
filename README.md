@@ -7,7 +7,7 @@
 
 
 
-# Dosya Yöneticisi (File Manager) ve Galeri Uygulaması
+# Dosya Yöneticisi (File Manager), Galeri ve Not Uygulaması
 
 birçok özellikler ve 2 uygulama tek uygulama içinde
 
