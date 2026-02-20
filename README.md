@@ -9,7 +9,7 @@
 
 # Dosya Yöneticisi (File Manager), Galeri ve Not Uygulaması
 
-birçok özellikler ve 2 uygulama tek uygulama içinde
+birçok özellikler ve 3 uygulama tek uygulama içinde
 
 Bu proje, React Native (JavaScript) kullanılarak geliştirilmiş, modern tasarıma sahip bir Dosya Yöneticisi ve Galeri uygulamasıdır. Hem Android hem de iOS platformlarında çalışacak şekilde tasarlanmıştır.
 
